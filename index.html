@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Minecraft Hostile Mobs Explorer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --obsidian:   #1a1a2e;
+      --stone:      #2d2d3d;
+      --stone-light:#3a3a50;
+      --grass:      #5c8a3c;
+      --creeper:    #6ab04c;
+      --gold:       #f9ca24;
+      --nether:     #8b1a1a;
+      --nether-glow:#e05c1a;
+      --boss:       #4a0e8f;
+      --boss-glow:  #9b59b6;
+      --text:       #e8e8e8;
+      --muted:      #9a9ab0;
+      --pixel: "Press Start 2P", monospace;
+      --body: "Inter", sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--obsidian);
+      color: var(--text);
+      font-family: var(--body);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── HERO ──────────────────────────────────────────── */
+    .hero {
+      position: relative;
+      padding: 72px 24px 56px;
+      text-align: center;
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 0%, rgba(106,176,76,0.12) 0%, transparent 70%),
+        var(--obsidian);
+      border-bottom: 4px solid #333350;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image:
+        repeating-linear-gradient(0deg, transparent, transparent 31px, rgba(255,255,255,0.02) 32px),
+        repeating-linear-gradient(90deg, transparent, transparent 31px, rgba(255,255,255,0.02) 32px);
+      pointer-events: none;
+    }
+
+    .hero-badge {
+      display: inline-block;
+      font-family: var(--pixel);
+      font-size: 9px;
+      color: var(--creeper);
+      border: 2px solid var(--creeper);
+      padding: 6px 14px;
+      letter-spacing: 0.05em;
+      margin-bottom: 24px;
+      image-rendering: pixelated;
+    }
+
+    .hero h1 {
+      font-family: var(--pixel);
+      font-size: clamp(18px, 4vw, 32px);
+      line-height: 1.6;
+      color: var(--gold);
+      text-shadow: 4px 4px 0 rgba(0,0,0,0.6), 0 0 30px rgba(249,202,36,0.3);
+      margin-bottom: 16px;
+      letter-spacing: 0.04em;
+    }
+
+    .hero-sub {
+      font-family: var(--body);
+      font-size: 15px;
+      color: var(--muted);
+      max-width: 480px;
+      margin: 0 auto 32px;
+      line-height: 1.7;
+    }
+
+    .hero-stats {
+      display: flex;
+      justify-content: center;
+      gap: 32px;
+      flex-wrap: wrap;
+    }
+
+    .hero-stat {
+      text-align: center;
+    }
+
+    .hero-stat-num {
+      font-family: var(--pixel);
+      font-size: 22px;
+      color: var(--gold);
+      display: block;
+    }
+
+    .hero-stat-label {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-top: 4px;
+      display: block;
+    }
+
+    /* ── CATEGORY SECTION ─────────────────────────────── */
+    .category {
+      padding: 56px 24px 32px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .category-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .category-icon {
+      width: 36px;
+      height: 36px;
+      flex-shrink: 0;
+    }
+
+    .category-label {
+      font-family: var(--pixel);
+      font-size: 11px;
+      letter-spacing: 0.1em;
+    }
+
+    .category-line {
+      flex: 1;
+      height: 2px;
+      background: linear-gradient(to right, currentColor, transparent);
+      opacity: 0.3;
+    }
+
+    .overworld .category-label { color: var(--creeper); }
+    .overworld .category-line  { background: linear-gradient(to right, var(--creeper), transparent); opacity: 0.3; }
+
+    .nether .category-label { color: var(--nether-glow); }
+    .nether .category-line  { background: linear-gradient(to right, var(--nether-glow), transparent); opacity: 0.3; }
+
+    .bosses .category-label { color: var(--boss-glow); }
+    .bosses .category-line  { background: linear-gradient(to right, var(--boss-glow), transparent); opacity: 0.3; }
+
+    /* ── MOB GRID ─────────────────────────────────────── */
+    .mob-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: 16px;
+    }
+
+    /* ── MOB CARD ─────────────────────────────────────── */
+    .mob-card {
+      display: block;
+      text-decoration: none;
+      background: var(--stone);
+      border: 3px solid #3e3e58;
+      position: relative;
+      cursor: pointer;
+      transition: transform 0.15s, border-color 0.15s;
+      image-rendering: pixelated;
+    }
+
+    .mob-card::before {
+      content: "";
+      position: absolute;
+      inset: 2px;
+      border: 1px solid rgba(255,255,255,0.06);
+      pointer-events: none;
+    }
+
+    .mob-card:hover {
+      transform: translateY(-4px);
+      z-index: 1;
+    }
+
+    .overworld .mob-card:hover  { border-color: var(--creeper); box-shadow: 0 0 16px rgba(106,176,76,0.35); }
+    .nether    .mob-card:hover  { border-color: var(--nether-glow); box-shadow: 0 0 16px rgba(224,92,26,0.35); }
+    .bosses    .mob-card:hover  { border-color: var(--boss-glow); box-shadow: 0 0 18px rgba(155,89,182,0.45); }
+
+    .card-img-wrap {
+      aspect-ratio: 1 / 1;
+      background: var(--stone-light);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .card-img-wrap img {
+      width: 72%;
+      height: 72%;
+      object-fit: contain;
+      image-rendering: pixelated;
+      transition: transform 0.2s;
+    }
+
+    .mob-card:hover .card-img-wrap img {
+      transform: scale(1.1);
+    }
+
+    .card-body {
+      padding: 10px 12px 12px;
+      border-top: 2px solid #3e3e58;
+    }
+
+    .card-name {
+      font-family: var(--pixel);
+      font-size: 8px;
+      line-height: 1.5;
+      color: var(--text);
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .card-hp {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .hearts {
+      display: flex;
+      gap: 2px;
+    }
+
+    .heart {
+      width: 8px;
+      height: 8px;
+      background: #c0392b;
+      clip-path: polygon(50% 0%, 100% 30%, 100% 70%, 50% 100%, 0% 70%, 0% 30%);
+      flex-shrink: 0;
+    }
+
+    .heart.half {
+      background: #7f1f16;
+    }
+
+    .card-hp-text {
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    .card-ar-tag {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      font-family: var(--pixel);
+      font-size: 6px;
+      background: var(--gold);
+      color: #1a1a00;
+      padding: 3px 5px;
+      letter-spacing: 0.05em;
+    }
+
+    /* ── BOSS CARD VARIANT ────────────────────────────── */
+    .bosses .mob-card {
+      border-width: 3px;
+      border-color: #5a2d82;
+    }
+
+    .bosses .card-img-wrap {
+      background: #1e0a2e;
+    }
+
+    /* ── DIVIDER ──────────────────────────────────────── */
+    .section-divider {
+      border: none;
+      height: 1px;
+      background: linear-gradient(to right, transparent, #3a3a50, transparent);
+      margin: 0 24px;
+    }
+
+    /* ── FOOTER ───────────────────────────────────────── */
+    footer {
+      padding: 40px 24px;
+      text-align: center;
+      border-top: 2px solid #2a2a40;
+    }
+
+    footer p {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.8;
+    }
+
+    footer .pixel-text {
+      font-family: var(--pixel);
+      font-size: 8px;
+      color: var(--creeper);
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    /* ── SCROLL-IN ANIMATION ──────────────────────────── */
+    .fade-up {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+
+    .fade-up.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .fade-up { opacity: 1; transform: none; transition: none; }
+    }
+
+    /* ── RESPONSIVE ───────────────────────────────────── */
+    @media (max-width: 480px) {
+      .mob-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+      .hero h1  { font-size: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── HERO ────────────────────────────────────────────── -->
+<header class="hero">
+  <div class="hero-badge">AR EXPERIENCE</div>
+  <h1>MINECRAFT<br>HOSTILE MOBS<br>EXPLORER</h1>
+  <p class="hero-sub">Select a mob below to view its 3D model, stats, and launch the AR experience on your device.</p>
+  <div class="hero-stats">
+    <div class="hero-stat">
+      <span class="hero-stat-num">16</span>
+      <span class="hero-stat-label">Mobs</span>
+    </div>
+    <div class="hero-stat">
+      <span class="hero-stat-num">3</span>
+      <span class="hero-stat-label">Biomes</span>
+    </div>
+    <div class="hero-stat">
+      <span class="hero-stat-num">AR</span>
+      <span class="hero-stat-label">Ready</span>
+    </div>
+  </div>
+</header>
+
+<!-- ── OVERWORLD ────────────────────────────────────────── -->
+<section class="category overworld fade-up">
+  <div class="category-header">
+    <!-- Grass block pixel icon (SVG) -->
+    <svg class="category-icon" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+      <rect width="16" height="16" fill="#8B5E3C"/>
+      <rect width="16" height="5" fill="#5c8a3c"/>
+      <rect x="0" y="4" width="16" height="2" fill="#4a7030"/>
+      <rect x="2" y="2" width="2" height="2" fill="#6ab04c"/>
+      <rect x="7" y="1" width="2" height="3" fill="#6ab04c"/>
+      <rect x="12" y="2" width="2" height="2" fill="#6ab04c"/>
+    </svg>
+    <span class="category-label">OVERWORLD</span>
+    <div class="category-line"></div>
+  </div>
+  <div class="mob-grid">
+
+    <a class="mob-card" href="Zombie.html">
+      <div class="card-img-wrap">
+        <img src="images/zombie.png" alt="Zombie" onerror="this.src='https://placehold.co/80x80/2d2d3d/6ab04c?text=Z&font=monospace'" />
+        <span class="card-ar-tag">AR</span>
+      </div>
+      <div class="card-body">
+        <span class="card-name">ZOMBIE</span>
+        <div class="card-hp">
+          <div class="hearts"><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div></div>
+          <span class="card-hp-text">20 HP</span>
+        </div>
+      </div>
+    </a>
+
+    <a class="mob-card" href="Skeleton.html">
+      <div class="card-img-wrap">
+        <img src="images/skeleton.png" alt="Skeleton" onerror="this.src='https://placehold.co/80x80/2d2d3d/6ab04c?text=SK&font=monospace'" />
+        <span class="card-ar-tag">AR</span>
+      </div>
+      <div class="card-body">
+        <span class="card-name">SKELETON</span>
+        <div class="card-hp">
+          <div class="hearts"><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div></div>
+          <span class="card-hp-text">20 HP</span>
+        </div>
+      </div>
+    </a>
+
+    <a class="mob-card" href="Creeper.html">
+      <div class="card-img-wrap">
+        <img src="images/creeper.png" alt="Creeper" onerror="this.src='https://placehold.co/80x80/2d2d3d/6ab04c?text=CR&font=monospace'" />
+        <span class="card-ar-tag">AR</span>
+      </div>
+      <div class="card-body">
+        <span class="card-name">CREEPER</span>
+        <div class="card-hp">
+          <div class="hearts"><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div></div>
+          <span class="card-hp-text">20 HP</span>
+        </div>
+      </div>
+    </a>
+
+    <a class="mob-card" href="Spider.html">
+      <div class="card-img-wrap">
+        <img src="images/spider.png" alt="Spider" onerror="this.src='https://placehold.co/80x80/2d2d3d/6ab04c?text=SP&font=monospace'" />
+        <span class="card-ar-tag">AR</span>
+      </div>
+      <div class="card-body">
+        <span class="card-name">SPIDER</span>
+        <div class="card-hp">
+          <div class="hearts"><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart half"></div></div>
+          <span class="card-hp-text">16 HP</span>
+        </div>
+      </div>
+    </a>
+
+    <a class="mob-card" href="Enderman.html">
+      <div class="card-img-wrap">
+        <img src="images/enderman.png" alt="Enderman" onerror="this.src='https://placehold.co/80x80/2d2d3d/6ab04c?text=EN&font=monospace'" />
+        <span class="card-ar-tag">AR</span>
+      </div>
+      <div class="card-body">
+        <span class="card-name">ENDERMAN</span>
+        <div class="card-hp">
+          <div class="hearts"><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div></div>
+          <span class="card-hp-text">40 HP</span>
+        </div>
+      </div>
+    </a>
+
+    <a class="mob-card" href="Witch.html">
+      <div class="card-img-wrap">
+        <img src="images/witch.png" alt="Witch" onerror="this.src='https://placehold.co/80x80/2d2d3d/6ab04c?text=WI&font=monospace'" />
+        <span class="card-ar-tag">AR</span>
+      </div>
+      <div class="card-body">
+        <span class="card-name">WITCH</span>
+        <div class="card-hp">
+          <div class="hearts"><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div></div>
+          <span class="card-hp-text">26 HP</span>
+        </div>
+      </div>
+    </a>
+
+    <a class="mob-card" href="Pillager.html">
+      <div class="card-img-wrap">
+        <img src="images/pillager.png" alt="Pillager" onerror="this.src='https://placehold.co/80x80/2d2d3d/6ab04c?text=PI&font=monospace'" />
+        <span class="card-ar-tag">AR</span>
+      </div>
+      <div class="card-body">
+        <span class="card-name">PILLAGER</span>
+        <div class="card-hp">
+          <div class="hearts"><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div></div>
+          <span class="card-hp-text">24 HP</span>
+        </div>
+      </div>
+    </a>
+
+    <a class="mob-card" href="Vindicator.html">
+      <div class="card-img-wrap">
+        <img src="images/vindicator.png" alt="Vindicator" onerror="this.src='https://placehold.co/80x80/2d2d3d/6ab04c?text=VI&font=monospace'" />
+        <span class="card-ar-tag">AR</span>
+      </div>
+      <div class="card-body">
+        <span class="card-name">VINDICATOR</span>
+        <div class="card-hp">
+          <div class="hearts"><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div></div>
+          <span class="card-hp-text">24 HP</span>
+        </div>
+      </div>
+    </a>
+
+    <a class="mob-card" href="Ravager.html">
+      <div class="card-img-wrap">
+        <img src="images/ravager.png" alt="Ravager" onerror="this.src='https://placehold.co/80x80/2d2d3d/6ab04c?text=RA&font=monospace'" />
+        <span class="card-ar-tag">AR</span>
+      </div>
+      <div class="card-body">
+        <span class="card-name">RAVAGER</span>
+        <div class="card-hp">
+          <div class="hearts"><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div></div>
+          <span class="card-hp-text">100 HP</span>
+        </div>
+      </div>
+    </a>
+
+  </div>
+</section>
+
+<hr class="section-divider" />
+
+<!-- ── NETHER ─────────────────────────────────────────── -->
+<section class="category nether fade-up">
+  <div class="category-header">
+    <!-- Netherrack pixel icon (SVG) -->
+    <svg class="category-icon" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+      <rect width="16" height="16" fill="#6b1a1a"/>
+      <rect x="2" y="2" width="3" height="3" fill="#8b2020"/>
+      <rect x="9" y="5" width="4" height="3" fill="#4a0f0f"/>
+      <rect x="1" y="10" width="5" height="4" fill="#7a1818"/>
+      <rect x="11" y="11" width="3" height="3" fill="#8b2020"/>
+      <rect x="5" y="1" width="2" height="2" fill="#4a0f0f"/>
+    </svg>
+    <span class="category-label">NETHER</span>
+    <div class="category-line"></div>
+  </div>
+  <div class="mob-grid">
+
+    <a class="mob-card" href="ZombiePiglin.html">
+      <div class="card-img-wrap">
+        <img src="images/zombie_piglin.png" alt="Zombie Piglin" onerror="this.src='https://placehold.co/80x80/2d2d3d/e05c1a?text=ZP&font=monospace'" />
+        <span class="card-ar-tag">AR</span>
+      </div>
+      <div class="card-body">
+        <span class="card-name">ZOMBIE PIGLIN</span>
+        <div class="card-hp">
+          <div class="hearts"><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div></div>
+          <span class="card-hp-text">20 HP</span>
+        </div>
+      </div>
+    </a>
+
+    <a class="mob-card" href="Blaze.html">
+      <div class="card-img-wrap">
+        <img src="images/blaze.png" alt="Blaze" onerror="this.src='https://placehold.co/80x80/2d2d3d/e05c1a?text=BL&font=monospace'" />
+        <span class="card-ar-tag">AR</span>
+      </div>
+      <div class="card-body">
+        <span class="card-name">BLAZE</span>
+        <div class="card-hp">
+          <div class="hearts"><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div></div>
+          <span class="card-hp-text">20 HP</span>
+        </div>
+      </div>
+    </a>
+
+    <a class="mob-card" href="Ghast.html">
+      <div class="card-img-wrap">
+        <img src="images/ghast.png" alt="Ghast" onerror="this.src='https://placehold.co/80x80/2d2d3d/e05c1a?text=GH&font=monospace'" />
+        <span class="card-ar-tag">AR</span>
+      </div>
+      <div class="card-body">
+        <span class="card-name">GHAST</span>
+        <div class="card-hp">
+          <div class="hearts"><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div></div>
+          <span class="card-hp-text">10 HP</span>
+        </div>
+      </div>
+    </a>
+
+    <a class="mob-card" href="MagmaCube.html">
+      <div class="card-img-wrap">
+        <img src="images/magma_cube.png" alt="Magma Cube" onerror="this.src='https://placehold.co/80x80/2d2d3d/e05c1a?text=MC&font=monospace'" />
+        <span class="card-ar-tag">AR</span>
+      </div>
+      <div class="card-body">
+        <span class="card-name">MAGMA CUBE</span>
+        <div class="card-hp">
+          <div class="hearts"><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div></div>
+          <span class="card-hp-text">16 HP</span>
+        </div>
+      </div>
+    </a>
+
+    <a class="mob-card" href="WitherSkeleton.html">
+      <div class="card-img-wrap">
+        <img src="images/wither_skeleton.png" alt="Wither Skeleton" onerror="this.src='https://placehold.co/80x80/2d2d3d/e05c1a?text=WS&font=monospace'" />
+        <span class="card-ar-tag">AR</span>
+      </div>
+      <div class="card-body">
+        <span class="card-name">WITHER SKELETON</span>
+        <div class="card-hp">
+          <div class="hearts"><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div></div>
+          <span class="card-hp-text">20 HP</span>
+        </div>
+      </div>
+    </a>
+
+  </div>
+</section>
+
+<hr class="section-divider" />
+
+<!-- ── BOSSES ───────────────────────────────────────────── -->
+<section class="category bosses fade-up">
+  <div class="category-header">
+    <!-- Dragon egg pixel icon (SVG) -->
+    <svg class="category-icon" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="8" cy="9" rx="5" ry="6" fill="#1a0030"/>
+      <ellipse cx="8" cy="9" rx="3" ry="4" fill="#2a0050"/>
+      <ellipse cx="6" cy="7" rx="1" ry="1" fill="#9b59b6"/>
+      <ellipse cx="10" cy="6" rx="1" ry="1" fill="#9b59b6"/>
+      <ellipse cx="8" cy="12" rx="1" ry="1" fill="#6a2090"/>
+    </svg>
+    <span class="category-label">BOSSES</span>
+    <div class="category-line"></div>
+  </div>
+  <div class="mob-grid">
+
+    <a class="mob-card" href="EnderDragon.html">
+      <div class="card-img-wrap">
+        <img src="images/ender_dragon.png" alt="Ender Dragon" onerror="this.src='https://placehold.co/80x80/1e0a2e/9b59b6?text=ED&font=monospace'" />
+        <span class="card-ar-tag">AR</span>
+      </div>
+      <div class="card-body">
+        <span class="card-name">ENDER DRAGON</span>
+        <div class="card-hp">
+          <div class="hearts"><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div></div>
+          <span class="card-hp-text">200 HP</span>
+        </div>
+      </div>
+    </a>
+
+    <a class="mob-card" href="Wither.html">
+      <div class="card-img-wrap">
+        <img src="images/wither.png" alt="Wither" onerror="this.src='https://placehold.co/80x80/1e0a2e/9b59b6?text=WT&font=monospace'" />
+        <span class="card-ar-tag">AR</span>
+      </div>
+      <div class="card-body">
+        <span class="card-name">WITHER</span>
+        <div class="card-hp">
+          <div class="hearts"><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div><div class="heart"></div></div>
+          <span class="card-hp-text">300 HP</span>
+        </div>
+      </div>
+    </a>
+
+  </div>
+</section>
+
+<!-- ── FOOTER ──────────────────────────────────────────── -->
+<footer>
+  <span class="pixel-text">MINECRAFT HOSTILE MOBS EXPLORER</span>
+  <p>3D AR experience for Android (Scene Viewer) &amp; iOS (Quick Look)<br>
+  Not affiliated with Mojang Studios or Microsoft.</p>
+</footer>
+
+<script>
+  // Scroll-triggered fade-in
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('visible');
+        observer.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.08 });
+
+  document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+</script>
+
+</body>
+</html>
